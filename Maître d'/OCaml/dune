@@ -1,0 +1,9 @@
+(library
+ (name maitre_d)
+ (modules maitre_d)
+ (libraries core))
+
+(test
+ (name maitre_d_test)
+ (modules maitre_d_test)
+ (libraries core maitre_d ounit2))
