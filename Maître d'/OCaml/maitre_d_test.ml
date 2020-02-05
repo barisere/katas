@@ -99,6 +99,73 @@ let suite_existing_reservations_are_grouped_by_date =
     [Printf.sprintf "table size = %d, quantity = %d" 4 candidate.quantity >::
      test_submit_reservation M.submit_reservation 4 existing_reservations candidate M.Accepted])
 
+let test_haute_cuisine tables existing_reservations candidate expected_outcome msg _ =
+  let open M in
+  let restaurant = { tables; reservations = existing_reservations } in
+  let outcome = submit_reservation_haute restaurant candidate in
+  O.assert_equal
+    ~msg
+    outcome
+    expected_outcome
+
+let suite_several_tables_with_capacity_accepts_reservation =
+  let open O in
+  let open M in
+  let tables = [{ size = 2 }; { size = 2 }; { size = 4 }; { size = 4 }] in
+  let existing_reservations = [] in
+  let candidate = { quantity = 4; date } in
+  "Two tables for two and two tables for four should accept reservation for four" >::
+  test_haute_cuisine
+    tables
+    existing_reservations
+    candidate
+    Accepted
+    "Expected reservation to be accepted, but it was rejected"
+
+let suite_several_tables_without_capacity_rejects_reservation =
+  let open O in
+  let open M in
+  let tables = [{ size = 2 }; { size = 2 }; { size = 4 }; { size = 4 }] in
+  let existing_reservations = [] in
+  let candidate = { quantity = 5; date } in
+  "Two tables for two and two tables for four should reject reservation for five" >::
+  test_haute_cuisine
+    tables
+    existing_reservations
+    candidate
+    Rejected
+    "Expected reservation to be rejected, but it was accepted"
+
+let suite_tables_with_existing_reservations_and_capacity_accepts_reservation =
+  let open O in
+  let open M in
+  let tables = [{ size = 2 }; { size = 2 }; { size = 4 }] in
+  let date = Date.of_string "2024-06-07" in
+  let existing_reservations = [{ quantity = 2; date };] in
+  let candidate = { quantity = 4; date } in
+  "Two tables for 2 and one table for 4, with existing reservation for 2, should accept reservation for 4" >::
+  test_haute_cuisine
+    tables
+    existing_reservations
+    candidate
+    Accepted
+    "Expected reservation to be accepted, but it was rejected"
+
+let suite_tables_with_existing_reservations_without_capacity_rejects_reservation =
+  let open O in
+  let open M in
+  let tables = [{ size = 2 }; { size = 2 }; { size = 4 }] in
+  let date = Date.of_string "2024-06-07" in
+  let existing_reservations = [{ quantity = 3; date }] in
+  let candidate = { quantity = 4; date } in
+  "Two tables for 2 and one table for 4, with existing reservation for 3, should reject reservation for 4" >::
+  test_haute_cuisine
+    tables
+    existing_reservations
+    candidate
+    Rejected
+    "Expected reservation to be rejected, but it was accepted"
+
 let () =
   let open O in
   let boutique_restaurant_tests =
@@ -111,4 +178,14 @@ let () =
       suite_existing_reservations_are_grouped_by_date
     ]
   in
-  run_test_tt_main boutique_restaurant_tests
+  let haute_cuisine_tests =
+    "Haute Cuisine tests" >:::
+    [
+      suite_several_tables_with_capacity_accepts_reservation;
+      suite_several_tables_without_capacity_rejects_reservation;
+      suite_tables_with_existing_reservations_and_capacity_accepts_reservation;
+      suite_tables_with_existing_reservations_without_capacity_rejects_reservation;
+    ]
+  in
+  let tests = test_list [boutique_restaurant_tests; haute_cuisine_tests] in
+  run_test_tt_main tests
