@@ -5,28 +5,27 @@ type reservation = {
   date: Date.t;
 }
 
+type table = {
+  size: int;
+}
+
 type restaurant = {
-  table_size: int;
+  tables: table list;
   reservations: reservation list;
 }
 
 type response = Accepted | Rejected
 
-module type Restaurant = sig
-  type t
-  val make: int -> reservation list -> t
-  val submit_reservation: t -> reservation -> response
-end
+type reservation_fn = restaurant -> reservation -> response
 
-module BoutiqueRestaurant: Restaurant = struct
-  type t = restaurant
-  let make s rs = { table_size = s; reservations = rs }
-  let submit_reservation t r =
-    let has_same_date r' = Date.(r.date = r'.date) in
-    let reserved_tables = List.fold t.reservations ~init:0
-        ~f:(fun acc r' -> if has_same_date r' then r'.quantity + acc else acc)
-    in
-    let available_tables = t.table_size - reserved_tables in
-    if available_tables >= r.quantity then Accepted else Rejected
-end
+let submit_reservation: reservation_fn = fun restaurant reservation ->
+  let has_same_date r' = Date.(reservation.date = r'.date) in
+  let reserved_tables = List.fold restaurant.reservations ~init:0
+      ~f:(fun acc r' -> if has_same_date r' then r'.quantity + acc else acc)
+  in
+  let seating_capacity = List.fold restaurant.tables ~init:0 ~f:(fun acc table -> acc + table.size) in
+  let available_tables = seating_capacity - reserved_tables in
+  if available_tables >= reservation.quantity then Accepted else Rejected
 
+let submit_reservation_haute: reservation_fn = fun restaurant reservation ->
+  submit_reservation restaurant reservation
