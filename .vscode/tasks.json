@@ -1,0 +1,21 @@
+{
+  // See https://go.microsoft.com/fwlink/?LinkId=733558
+  // for the documentation about the tasks.json format
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Dune type check",
+      "type": "shell",
+      "command": "dune build @check --watch",
+      "group": "build",
+      "problemMatcher": ["$ocamlc"]
+    },
+    {
+      "label": "Dune test",
+      "type": "shell",
+      "command": ["dune", "runtest", "--watch"],
+      "group": "build",
+      "problemMatcher": "$ocamlc"
+    }
+  ]
+}
