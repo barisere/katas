@@ -28,7 +28,6 @@ let submit_reservation: reservation_fn = fun restaurant reservation ->
   if available_tables >= reservation.quantity then Accepted else Rejected
 
 let submit_reservation_haute: reservation_fn = fun restaurant reservation ->
-  let can_take_reservation t = t.size >= reservation.quantity in
   let accept_reservations =
     let tables = List.to_array restaurant.tables in
     let () = Array.sort ~compare:(fun t t' -> Int.compare t.size t'.size) tables in
@@ -39,7 +38,8 @@ let submit_reservation_haute: reservation_fn = fun restaurant reservation ->
         | None -> ());
     Array.filter ~f:(fun t -> t.size > 0) tables |> Array.to_list
   in
+  let can_take_reservation t = t.size >= reservation.quantity in
   let candidate_tables = accept_reservations in
   if List.exists candidate_tables ~f:can_take_reservation then
-    submit_reservation restaurant reservation
+    Accepted
   else Rejected
