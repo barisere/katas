@@ -7,7 +7,7 @@ module Q = Quickcheck
 let surplus_quantity_generator =
   let open Q.Generator in
   let table_size, q = map ~f:abs small_positive_int, map ~f:abs small_positive_int in
-  let date = Date.of_string "2023-09-14" |> return in
+  let date = Time.of_string "2023-09-14T00:00:00" |> return in
   map3 table_size q date ~f:(fun t q date -> M.({ date; quantity = t + q }, t))
 
 let test_quantity_larger_than_table_size_rejects_reservation (reserve: M.reservation_fn) _ =
@@ -20,7 +20,7 @@ let test_quantity_larger_than_table_size_rejects_reservation (reserve: M.reserva
 let deficit_quantity_generator =
   let open Q.Generator in
   let table_size, q = map ~f:abs small_positive_int, map ~f:abs small_positive_int in
-  let date = Date.of_string "2023-09-14" |> return in
+  let date = Time.of_string "2023-09-14T00:00:00" |> return in
   map3 table_size q date ~f:(fun t q date -> M.({ date; quantity = min t q }, t))
 
 let test_quantity_smaller_than_table_size_accepts_reservation (reserve: M.reservation_fn) _ =
@@ -30,7 +30,7 @@ let test_quantity_smaller_than_table_size_accepts_reservation (reserve: M.reserv
         let response = reserve r c in
         O.assert_equal response M.Accepted)
 
-let date = Date.of_string "2023-09-14"
+let date = Time.of_string "2023-09-14T00:00:00"
 
 let make_reservations quantities: M.reservation list =
   List.map quantities ~f:(fun q: M.reservation -> { date; quantity = q })
@@ -92,7 +92,7 @@ let suite_existing_reservations_insufficient_capacity =
   test_with_existing_reservations_request_more_than_table_size_is_rejected M.submit_reservation
 
 let suite_existing_reservations_are_grouped_by_date =
-  let existing_reservations = M.({ date = Date.of_string "2023-09-15"; quantity = 2 })::[] in
+  let existing_reservations = M.({ date = Time.of_string "2023-09-15T00:00:00"; quantity = 2 })::[] in
   let candidate = M.({ date; quantity = 3 }) in
   O.(
     "Boutique restaurant considers reservations for only the requested day." >:::
@@ -140,7 +140,7 @@ let suite_tables_with_existing_reservations_and_capacity_accepts_reservation =
   let open O in
   let open M in
   let tables = [{ size = 2 }; { size = 2 }; { size = 4 }] in
-  let date = Date.of_string "2024-06-07" in
+  let date = Time.of_string "2024-06-07T00:00:00" in
   let existing_reservations = [{ quantity = 2; date };] in
   let candidate = { quantity = 4; date } in
   "Two tables for 2 and one table for 4, with existing reservation for 2, should accept reservation for 4" >::
@@ -155,7 +155,7 @@ let suite_tables_with_existing_reservations_without_capacity_rejects_reservation
   let open O in
   let open M in
   let tables = [{ size = 2 }; { size = 2 }; { size = 4 }] in
-  let date = Date.of_string "2024-06-07" in
+  let date = Time.of_string "2024-06-07T00:00:00" in
   let existing_reservations = [{ quantity = 3; date }] in
   let candidate = { quantity = 4; date } in
   "Two tables for 2 and one table for 4, with existing reservation for 3, should reject reservation for 4" >::
