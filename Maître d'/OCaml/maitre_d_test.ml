@@ -10,7 +10,7 @@ let surplus_quantity_generator =
   let date = Time.of_string "2023-09-14T00:00:00" |> return in
   map3 table_size q date ~f:(fun t q date -> M.({ date; quantity = t + q }, t))
 
-let test_quantity_larger_than_table_size_rejects_reservation (reserve: M.reservation_fn) _ =
+let test_quantity_larger_than_table_size_rejects_reservation reserve _ =
   Q.test surplus_quantity_generator
     ~f:(fun (c, table_size) ->
         let r = M.({ tables = [{ size = table_size }]; reservations = []}) in
@@ -23,7 +23,7 @@ let deficit_quantity_generator =
   let date = Time.of_string "2023-09-14T00:00:00" |> return in
   map3 table_size q date ~f:(fun t q date -> M.({ date; quantity = min t q }, t))
 
-let test_quantity_smaller_than_table_size_accepts_reservation (reserve: M.reservation_fn) _ =
+let test_quantity_smaller_than_table_size_accepts_reservation reserve _ =
   Q.test deficit_quantity_generator
     ~f:(fun (c, table_size) ->
         let r = M.({ tables = [{ size = table_size }]; reservations = [] }) in
@@ -41,7 +41,7 @@ let existing_reservations_and_table_incr_gen =
   let t_incr = small_positive_int in
   both rs t_incr
 
-let test_with_existing_reservations_not_more_than_table_size_is_accepted (reserve: M.reservation_fn) _ =
+let test_with_existing_reservations_not_more_than_table_size_is_accepted reserve _ =
   Q.test existing_reservations_and_table_incr_gen
     ~f:(fun (existing_reservations, table_incr) ->
         let total_existing_reservations = List.fold ~init:0
@@ -54,7 +54,7 @@ let test_with_existing_reservations_not_more_than_table_size_is_accepted (reserv
         O.assert_equal response M.Accepted;
       )
 
-let test_with_existing_reservations_request_more_than_table_size_is_rejected (reserve: M.reservation_fn) _ =
+let test_with_existing_reservations_request_more_than_table_size_is_rejected reserve _ =
   Q.test existing_reservations_and_table_incr_gen
     ~f:(fun (existing_reservations, t_incr) ->
         let table_size = List.fold ~init:0
@@ -66,7 +66,7 @@ let test_with_existing_reservations_request_more_than_table_size_is_rejected (re
         O.assert_equal response M.Rejected;
       )
 
-let test_submit_reservation (reserve: M.reservation_fn) table_size existing_reservations candidate expected _ =
+let test_submit_reservation reserve table_size existing_reservations candidate expected _ =
   let r = M.({ tables = [{ size = table_size }]; reservations = existing_reservations }) in
   let response = reserve r candidate in
   O.assert_equal response expected
@@ -166,6 +166,96 @@ let suite_tables_with_existing_reservations_without_capacity_rejects_reservation
     Rejected
     "Expected reservation to be rejected, but it was accepted"
 
+let test_second_seatings seating_duration tables existing_reservations candidate expected_outcome msg _ =
+  let open M in
+  let restaurant = { tables; reservations = existing_reservations } in
+  let outcome = submit_reservation_2nd_seating seating_duration restaurant candidate in
+  O.assert_equal
+    ~msg
+    outcome
+    expected_outcome
+
+let suite_full_reservation_at_different_seatings_is_accepted =
+  let open O in
+  let open M in
+  let tables = [{ size = 2 }; { size = 2 }; { size = 4 }] in
+  let date = Time.of_string "2023-10-22T20:00:00Z" in
+  let existing_reservations = [{ quantity = 3; date = Time.of_string "2023-10-22T18:00:00Z" }] in
+  let candidate = { quantity = 4; date } in
+  "Restaurant should accept full reservations with non-overlapping seatings." >::
+  test_second_seatings
+    (Time.Span.of_hr 2.0)
+    tables
+    existing_reservations
+    candidate
+    Accepted
+    "Expected reservation to be accepted, but it was rejected"
+
+let suite_full_reservation_at_same_seating_is_rejected =
+  let open O in
+  let open M in
+  let tables = [{ size = 2 }; { size = 4 }; { size = 4 }] in
+  let existing_reservations =
+    [
+      { quantity = 2; date = Time.of_string "2023-10-22T18:00:00Z" };
+      { quantity = 1; date = Time.of_string "2023-10-22T18:15:00Z" };
+      { quantity = 1; date = Time.of_string "2023-10-22T17:45:00Z" };
+    ]
+  in
+  let date = Time.of_string "2023-10-22T20:00:00Z" in
+  let candidate = { quantity = 4; date } in
+  "Restaurant should reject full reservations withing same seating." >::
+  test_second_seatings
+    (Time.Span.of_hr 2.5)
+    tables
+    existing_reservations
+    candidate
+    Rejected
+    "Expected reservation to be rejected, but it was accepted"
+
+let suite_reservation_at_same_seating_with_capacity_is_accepted =
+  let open O in
+  let open M in
+  let tables = [{ size = 2 }; { size = 4 }; { size = 4 }] in
+  let existing_reservations =
+    [
+      { quantity = 2; date = Time.of_string "2023-10-22T18:00:00Z" };
+      { quantity = 1; date = Time.of_string "2023-10-22T17:45:00Z" };
+    ]
+  in
+  let date = Time.of_string "2023-10-22T20:00:00Z" in
+  let candidate = { quantity = 4; date } in
+  "Restaurant should accept full reservations withing same seating when there is capacity." >::
+  test_second_seatings
+    (Time.Span.of_hr 2.5)
+    tables
+    existing_reservations
+    candidate
+    Accepted
+    "Expected reservation to be accepted, but it was rejected"
+
+let suite_restaurant_accepts_reservation_when_previous_seating_ends =
+  let open O in
+  let open M in
+  let tables = [{ size = 2 }; { size = 4 }; { size = 4 }] in
+  let existing_reservations =
+    [
+      { quantity = 2; date = Time.of_string "2023-10-22T18:00:00Z" };
+      { quantity = 1; date = Time.of_string "2023-10-22T18:15:00Z" };
+      { quantity = 2; date = Time.of_string "2023-10-22T17:45:00Z" };
+    ]
+  in
+  let date = Time.of_string "2023-10-22T20:15:00Z" in
+  let candidate = { quantity = 4; date } in
+  "Restaurant should accept reservation at the end of a seating." >::
+  test_second_seatings
+    (Time.Span.of_hr 2.5)
+    tables
+    existing_reservations
+    candidate
+    Accepted
+    "Expected reservation to be accepted, but it was rejected"
+
 let () =
   let open O in
   let boutique_restaurant_tests =
@@ -187,5 +277,20 @@ let () =
       suite_tables_with_existing_reservations_without_capacity_rejects_reservation;
     ]
   in
-  let tests = test_list [boutique_restaurant_tests; haute_cuisine_tests] in
+  let second_seatings_tests =
+    "Second seatings" >:::
+    [
+      suite_full_reservation_at_different_seatings_is_accepted;
+      suite_full_reservation_at_same_seating_is_rejected;
+      suite_reservation_at_same_seating_with_capacity_is_accepted;
+      suite_restaurant_accepts_reservation_when_previous_seating_ends;
+    ]
+  in
+  let tests = test_list
+      [
+        boutique_restaurant_tests;
+        haute_cuisine_tests;
+        second_seatings_tests;
+      ]
+  in
   run_test_tt_main tests
