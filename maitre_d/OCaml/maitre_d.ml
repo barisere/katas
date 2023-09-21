@@ -1,5 +1,7 @@
 open Core
 
+module Time = Time_float
+
 type reservation = {
   quantity: int;
   date: Time.t;
@@ -59,4 +61,3 @@ let submit_reservation_2nd_seating seating_duration restaurant reservation =
   if List.exists available_tables ~f:(fun t -> t.size >= reservation.quantity) then
     Accepted
   else Rejected
-

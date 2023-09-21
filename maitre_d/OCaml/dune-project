@@ -1,0 +1,12 @@
+(lang dune 3.0)
+(generate_opam_files true)
+(maintainers "Barisere Jonathan")
+
+(package
+ (name maitre_d)
+ (synopsis "Solutions to the Maitre d' kata by Mark Seemann")
+ (depends
+  (ocaml (>= 4.06.0))
+   core
+  (ounit2 :with-test)
+  (odoc :with-doc)))
